@@ -2,12 +2,14 @@
 
 Application Python/FastAPI + SQLite, avec interface web locale. La collecte et le regroupement des alertes sont les seules fonctions de traitement. Les connecteurs d’identification, registres d’entreprises et matching ont été retirés.
 
+La branche `prod` conserve la version stable (v0.2.1). Les évolutions sont réalisées et testées sur `dev` ; elles ne sont pas publiées automatiquement sur les Raspberry Pi. Un tag de version doit appartenir à `prod` pour publier un nouveau paquet installable.
+
 ## Installation automatique sur Raspberry Pi
 
 Sur un Pi 2 v1.1 avec **Raspberry Pi OS Lite 32 bits Bookworm**, Internet et `curl` :
 
 ```bash
-curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/main/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
+curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/prod/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
 ```
 
 Le téléchargement, les contrôles d'intégrité, les prérequis, la base et le démarrage automatique sont pris en charge. L'adresse du site s'affiche en fin d'installation. La commande `sudo csirt-update` installe ensuite la dernière version publiée en sauvegardant les données et la configuration. Si `curl` manque : `sudo apt-get update && sudo apt-get install -y curl ca-certificates`.
@@ -49,9 +51,13 @@ Les compteurs d'incidents, de publications et de recoupements, ainsi que les gra
 Les en-têtes Organisme, Dernière publication, Statut et Sources sont cliquables. Un second clic inverse le sens du tri ; les noms sont classés sans distinguer accents et casse. Le tri porte sur tous les résultats filtrés avant pagination, reste dans l’URL et survit aux actualisations automatiques. Pour une fiche ayant plusieurs sources, le tri utilise la première source dans l’ordre alphabétique.
 
 
-Le navigateur consulte `/updates` chaque minute lorsque la page est visible. Si les données changent, le tableau se met à jour sur place en conservant ses filtres et sa pagination. Un retour sur l’onglet déclenche aussi une vérification. « Actualiser le tableau » consulte les données locales sans forcer une collecte RSS.
+Chaque navigateur conserve son propre profil de lecture, sans connexion et sans compte côté serveur. La lecture d'une fiche marque uniquement la version affichée comme vue. Une publication ou une modification ultérieure la fait réapparaître parmi les alertes non vues. Le filtre « Nouveautés uniquement » applique ce profil avant le tri et la pagination ; il reste cohérent même si certaines alertes ont déjà été lues une par une.
 
-À la première visite, l’historique existant sert de point de départ. Ensuite, un incident nouvellement collecté, une publication supplémentaire ou une modification de publication reçoit le repère « Nouveau / mis à jour ». Le filtre « Nouveautés uniquement » les isole. Le bouton « Tout marquer comme vu » avance explicitement le repère de lecture. Il est conservé dans le stockage local de ce navigateur, y compris après actualisation et fermeture de l’onglet ; les onglets du même site synchronisent ce repère. Il n’est pas partagé entre appareils ou origines. Si le stockage est interdit ou effacé, le suivi repart à la visite suivante. Une nouvelle base est détectée par son identifiant propre.
+Le tableau se met à jour sur place chaque minute, en conservant les filtres et la pagination, sans recharger la page. Un retour sur l'onglet déclenche aussi une vérification. Le titre de l'onglet affiche `(N) Observatoire · CSIRT` pour les alertes non vues, avec le même nombre dans la navigation. En arrière-plan, seul le suivi léger est consulté ; le tableau attend le retour sur la page. Les navigateurs peuvent ralentir ou suspendre les minuteries des onglets masqués. Ces lectures locales ne provoquent jamais de collecte RSS.
+
+À la première visite, l'historique existant sert de point de départ. Les anciens repères de lecture sont repris automatiquement. Le bouton « Tout marquer comme vu » acquitte les versions connues au dernier contrôle, sans masquer les arrivées ultérieures. Les onglets d'un même navigateur synchronisent et fusionnent leurs lectures. Les profils de navigateurs, appareils ou adresses du site différents restent indépendants. Effacer le stockage local ou utiliser la navigation privée peut faire perdre ce suivi ; si le stockage est refusé, il reste en mémoire pendant l'ouverture courante. Une nouvelle base est détectée par son identifiant propre.
+
+Les routes `POST /reading/updates` et `POST /reading/incidents` utilisent temporairement le repère envoyé par le navigateur pour calculer son compteur et ses pages d'alertes non vues. Elles ne créent ni utilisateur ni état de lecture dans SQLite. L'ouverture automatique d'une fiche déjà affichée ne marque pas ses nouvelles versions comme vues : un bouton permet de les acquitter explicitement.
 
 Les statuts confirmé/revendiqué et indices retranscrivent ce que publient les sources. Ils ne constituent pas une vérification indépendante. Les regroupements utilisent les variantes de nom, les sigles explicitement cités et le type d’événement entre sources distinctes. L’écart total des dates de publication doit être strictement inférieur à 48 heures, sans exception fondée sur une mise à jour ou la date de collecte. Un DDoS et une fuite de données restent séparés.
 
@@ -65,6 +71,7 @@ Les anciens stocks locaux SIRENE/RNA ne sont plus nécessaires. Sur une installa
 
 ```powershell
 python -m pytest -q
+node --test tests/reading.test.cjs
 python scripts/prepare_pi_wheels.py --python 3.11
 python scripts/package_pi.py --with-database --wheelhouse dist/pi-wheels
 ```

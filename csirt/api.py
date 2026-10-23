@@ -16,6 +16,7 @@ from csirt.runtime import collector_status
 from csirt.grouping import canonical_incident_id,grouping_key
 from csirt.alert_status import ALERT_STATUS_SQL,alert_status_sql,incident_alerts,publication_assessment,LABELS
 from csirt.reporting import reporting_period
+from csirt.reading import ReadingState,reading_query
 
 Kind=Literal['data_breach','cyberattack','ransomware','vulnerability','other']
 Status=Literal['confirmed','claimed','unreliable_claim','unknown']
@@ -28,14 +29,18 @@ def observation(row):
     item['alert_assessment']=publication_assessment(item)
     return item
 
-def snapshot(db,since=0,period=None):
+def snapshot(db,since=0,period=None,reading=None):
     state=dict(db.execute('SELECT generation,revision,sequence FROM alert_state WHERE id=1').fetchone())
     # Les erreurs et succès RSS actualisent aussi les cartes, même sans nouvel article.
     sources=db.execute('SELECT COALESCE(SUM(last_attempt_at),0),SUM(failures) FROM sources').fetchone()
     period=period or reporting_period()
     # La bascule du bilan à 20 h actualise aussi la page sans nouvelle collecte.
     state['revision']=f"{state['revision']}:{sources[0]}:{sources[1]}:{period['starts_at']}"
-    state['new_count']=db.execute('SELECT COUNT(*) FROM incidents WHERE activity_seq>?',(since,)).fetchone()[0]
+    if reading is None:
+        state['new_count']=db.execute('SELECT COUNT(*) FROM incidents WHERE activity_seq>?',(since,)).fetchone()[0]
+    else:
+        prefix,table,clauses,params=reading_query(reading)
+        state['new_count']=db.execute(prefix+'SELECT COUNT(*) FROM '+table+' WHERE '+' AND '.join(clauses),params).fetchone()[0]
     return state
 
 def create_app(settings=None):
@@ -84,6 +89,12 @@ def create_app(settings=None):
     def sources():
         with connect(settings) as db:
             return [dict(r) for r in db.execute('SELECT id,name,feed_url,enabled,poll_seconds,last_attempt_at,last_success_at,next_poll_at,last_http_status,last_error,failures FROM sources WHERE kind=\'rss\' ORDER BY name')]
+
+    @app.post('/reading/updates')
+    def reading_updates(reading:ReadingState):
+        with connect(settings) as db:
+            db.execute('BEGIN')
+            return {**snapshot(db,reading=reading),'collector':collector_status(db)}
 
     @app.get('/dashboard')
     def dashboard():
@@ -151,13 +162,14 @@ def create_app(settings=None):
 
 
     @app.get('/incidents')
+    @app.post('/reading/incidents')
     def incidents(limit:int=Query(25,ge=1,le=100),offset:int=Query(0,ge=0,le=10000),
                   alert_status:AlertStatus|None=None, source:str|None=Query(None,max_length=80),
                   q:str|None=Query(None,min_length=1,max_length=128),
                   since_sequence:int|None=Query(None,ge=0),
                   sort:Literal['last_changed_at','reference_at','activity_seq','organization','alert_status','source_name']='reference_at',
-                  order:Literal['asc','desc']='desc'):
-        clauses,params=[],[]
+                  order:Literal['asc','desc']='desc',reading:ReadingState|None=None):
+        prefix,table,clauses,params=reading_query(reading)
         if alert_status:
             clauses.append('('+ALERT_STATUS_SQL+')=?');params.append(alert_status)
         if since_sequence is not None:
@@ -183,8 +195,8 @@ def create_app(settings=None):
         }[sort]
         with connect(settings) as db:
             db.execute('BEGIN')
-            total=db.execute('SELECT COUNT(*) FROM incidents i'+where,params).fetchone()[0]
-            rows=db.execute('SELECT i.*,(SELECT COUNT(*) FROM observations o WHERE o.incident_id=i.id) observation_count FROM incidents i'+where+f' ORDER BY {sort_expression} {order} NULLS LAST,i.id {order} LIMIT ? OFFSET ?',[*params,limit,offset]).fetchall()
+            total=db.execute(prefix+'SELECT COUNT(*) FROM '+table+where,params).fetchone()[0]
+            rows=db.execute(prefix+'SELECT i.*,(SELECT COUNT(*) FROM observations o WHERE o.incident_id=i.id) observation_count FROM '+table+where+f' ORDER BY {sort_expression} {order} NULLS LAST,i.id {order} LIMIT ? OFFSET ?',[*params,limit,offset]).fetchall()
             alerts=incident_alerts(db,[r['id'] for r in rows])
             origins={}
             if rows:
@@ -193,7 +205,7 @@ def create_app(settings=None):
                     origins.setdefault(origin['incident_id'],[]).append({'id':origin['id'],'name':origin['name']})
             items=[{**dict(r),'sources':origins.get(r['id'],[]),'alert_assessment':alerts[r['id']],
                     'grouping':'possible_match' if r['observation_count']>1 else 'single_source'} for r in rows]
-            return {'total':total,'limit':limit,'offset':offset,'items':items,'snapshot':snapshot(db)}
+            return {'total':total,'limit':limit,'offset':offset,'items':items,'snapshot':snapshot(db,reading=reading)}
 
     @app.get('/incidents/{incident_id}')
     def incident(incident_id:int):

@@ -5,7 +5,7 @@
   <meta name="description" content="Collecte et regroupement des alertes cyber de quatre sources publiques.">
   <meta name="theme-color" content="#121c32"><title>Observatoire · CSIRT</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/app.css?v=reporting-period-1"><script src="/assets/app.js?v=reporting-period-1" defer></script>
+  <link rel="stylesheet" href="/assets/app.css?v=local-reading-2"><script src="/assets/reading.js?v=local-reading-2" defer></script><script src="/assets/app.js?v=local-reading-2" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Aller au contenu</a>
@@ -14,7 +14,7 @@
   <p class="nav-caption">ESPACE DE VEILLE</p>
   <nav aria-label="Navigation principale">
     <a href="#overview" data-view="overview">◫ <span>Vue d’ensemble</span></a>
-    <a href="#incidents" data-view="incidents">▤ <span>Incidents</span><b id="nav-count">—</b></a>
+    <a href="#incidents" data-view="incidents">▤ <span>Incidents</span><b id="nav-count" title="Alertes non vues dans ce navigateur">—</b></a>
     <a href="#sources" data-view="sources">◉ <span>Sources de veille</span></a>
   </nav>
   <div class="sidebar-note"><span class="dot"></span> Une veille, plusieurs sources.<small>Les alertes réunies au même endroit.</small></div>
@@ -27,7 +27,7 @@
   <div id="global-error" class="notice error" role="alert" hidden></div>
   <div class="collection-control"><div><strong><span class="dot"></span> Production · bridé</strong><small>Collecte des flux toutes les 30 minutes · Tableau actualisé automatiquement chaque minute</small></div><span id="collector-status">Lecture du collecteur…</span></div>
   <section class="new-banner" aria-label="Nouveautés depuis votre dernière consultation">
-    <div><strong id="new-title">Suivi des nouveautés</strong><p id="new-description">Chargement de votre repère de lecture…</p></div>
+    <div><strong id="new-title" role="status" aria-live="polite">Vos alertes non vues</strong><p id="new-description">Chargement du profil local de ce navigateur…</p></div>
     <div class="button-group"><button id="show-new" class="button button-primary">Voir les nouveautés</button><button id="mark-seen" class="button">Tout marquer comme vu</button></div>
   </section>
   <p id="reporting-period" class="muted" role="status" aria-live="polite">Bilan de veille : de 17 h à 17 h, heure de Paris · Bascule à 20 h</p>

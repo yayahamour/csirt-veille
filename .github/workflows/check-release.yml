@@ -2,7 +2,7 @@ name: Tests et version Raspberry Pi
 
 on:
   push:
-    branches: [main]
+    branches: [main, prod, dev]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -26,6 +26,8 @@ jobs:
           bash -n install.sh
           bash -n deploy/raspberry/install.sh
           node --check csirt/web/app.js
+          node --check csirt/web/reading.js
+          node --test tests/reading.test.cjs
       - name: Tester l'application et l'installation
         run: python -m pytest -q
 
@@ -37,11 +39,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
       - name: Vérifier le numéro de version
         run: |
+          git fetch origin prod
+          git merge-base --is-ancestor HEAD origin/prod || { echo 'La publication requiert un commit présent dans prod.' >&2; exit 1; }
           python -c 'import os,tomllib; from pathlib import Path; version=tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["GITHUB_REF_NAME"]=="v"+version'
       - name: Préparer les roues ARM pour Bookworm
         run: python scripts/prepare_pi_wheels.py --python 3.11

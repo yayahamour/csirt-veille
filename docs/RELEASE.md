@@ -3,7 +3,7 @@ Installation automatique pour Raspberry Pi 2 Model B v1.1 / Raspberry Pi OS Lite
 La version 0.2.1 corrige l'installation depuis un dossier extrait ou cloné : `sudo ./install.sh` place automatiquement le projet dans `/opt/csirt`. Les dossiers imbriqués et les noms contenant des espaces sont pris en charge. L'ancien dossier, les données et la configuration sont préservés ou sauvegardés.
 
 ```bash
-curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/main/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
+curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/prod/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
 ```
 
 Le bootstrap télécharge la dernière version publiée, vérifie son checksum et son manifeste, installe les dépendances et active les deux services. L'adresse locale du site est affichée à la fin. Le système d'exploitation doit déjà être installé sur le Pi et connecté à Internet. Si `curl` est absent : `sudo apt-get update && sudo apt-get install -y curl ca-certificates`.

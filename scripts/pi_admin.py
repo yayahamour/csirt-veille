@@ -47,7 +47,9 @@ def check_runtime(require_pi=False):
         raise ValueError('Installer Raspberry Pi OS Lite 32 bits sur le Pi 2 v1.1 (ARMv7)')
     if require_pi and sys.version_info[:2] not in {(3,11),(3,13)}:
         raise ValueError('Déploiement prévu pour Python 3.11 (Bookworm) ou 3.13 (Trixie)')
-    with sqlite3.connect(':memory:') as db:db.execute('CREATE VIRTUAL TABLE test USING fts5(content)')
+    with sqlite3.connect(':memory:') as db:
+        db.execute('CREATE VIRTUAL TABLE test USING fts5(content)')
+        db.execute("WITH test AS MATERIALIZED (SELECT value FROM json_each('[1]')) SELECT * FROM test").fetchone()
     from csirt.config import Settings,load_sources
     settings=Settings.from_env();sources=load_sources(settings)
     from csirt.api import create_app

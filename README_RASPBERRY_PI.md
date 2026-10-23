@@ -7,7 +7,7 @@ Le paquet fournit l'interface FastAPI, SQLite, le collecteur RSS et les services
 Le système Raspberry Pi OS doit déjà être installé, démarré et connecté à Internet. Sur le Pi, une fois connecté par SSH, lancer :
 
 ```bash
-curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/main/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
+curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/prod/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
 ```
 
 Si `curl` n'est pas présent : `sudo apt-get update && sudo apt-get install -y curl ca-certificates`. La préparation de la carte SD reste à faire avec Raspberry Pi Imager ; le script prend en charge toute l'installation de l'application après démarrage du système.
@@ -116,7 +116,7 @@ sudo systemctl restart csirt-web csirt-collector
 
 Les sources sont interrogées séquentiellement toutes les **30 minutes**, avec requêtes conditionnelles et délais conservés dans SQLite. Une erreur réseau ou un `Retry-After` peut repousser la collecte. Le réveil interne du collecteur toutes les 30 secondes ne force pas de requêtes supplémentaires. Aucun mode débridé ni connecteur SIRENE/RNA n'est installé.
 
-Le navigateur vérifie les changements chaque minute lorsqu'il est visible et au retour sur l'onglet. Le tableau évolue sans recharger la page. Le suivi « Nouveau / mis à jour » est propre au navigateur et à l'adresse du site : votre première visite sur le Pi crée un nouveau repère de lecture. Les regroupements entre sources conservent une plage totale de publication strictement inférieure à 48 heures.
+Sur la branche `dev`, le suivi de lecture est propre à chaque navigateur et appareil, sans connexion. Ouvrir une fiche acquitte uniquement sa version affichée ; une nouvelle publication la fait réapparaître comme non vue. Les onglets du même navigateur fusionnent leurs lectures. Le titre de l'onglet et le menu affichent le nombre d'alertes non vues. Le suivi est vérifié chaque minute, y compris en arrière-plan dans les limites du navigateur ; le tableau se met à jour sans rechargement lorsqu'il est visible et au retour sur l'onglet. L'historique sert de point de départ lors de la première visite. Les repères de lecture précédents sont repris automatiquement. Ces évolutions de `dev` ne modifient pas les paquets `prod` déjà publiés.
 
 Les compteurs et graphiques utilisent les dates de publication entre 17 h la veille (incluse) et 17 h le jour du bilan (exclue), en heure de Paris. Le bilan reste affiché jusqu'à 20 h, puis passe à la période suivante en incluant les publications reçues depuis 17 h. Cette bascule est automatique, y compris sans nouvelle collecte, et suit les changements d'heure. Le tableau garde l'historique complet. Les fuseaux horaires sont fournis par le paquet système `tzdata`, installé avec les prérequis.
 

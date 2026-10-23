@@ -230,6 +230,8 @@ Les sept routes métier sont en GET. Elles consultent les données locales sans 
 | /health | status, mode et collector avec active, mode et heartbeat_at. |
 | /sources | Identifiant, nom, URL, activation, intervalle, dates de tentative et de succès, prochaine échéance, état HTTP, erreur et compteur d’échecs. |
 | /dashboard | Bilan des publications entre 17 h la veille et 17 h le jour du bilan, heure de Paris, début inclus et fin exclue. Bascule à 20 h. Renvoie `period` (bornes UTC et locales, fuseau, prochaine bascule), incidents distincts, publications, recoupements et statuts de la période, volumes par source, sources activées, `total_incidents` pour l’historique, état du collecteur et snapshot. |
+| POST /reading/updates | Compteur personnel d'alertes non vues, calculé à partir de `generation`, `sequence` et `seen` envoyés par le navigateur. Aucune écriture ou création d'utilisateur côté serveur. |
+| POST /reading/incidents | Même état local en corps JSON ; filtres, tri et pagination de `/incidents` appliqués aux alertes non vues. Les acquittements sont pris en compte avant la pagination. |
 | /updates | generation, revision, sequence, new_count et collector ; accepte le curseur since. |
 | /incidents | total, limit, offset, items et snapshot ; chaque item est une synthèse d’incident. |
 | /incidents/{incident_id} | Fiche complète, variantes du nom, publications originales et appréciation agrégée. Résout les anciens identifiants fusionnés. |
