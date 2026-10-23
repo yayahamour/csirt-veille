@@ -1,0 +1,25 @@
+.venv/
+.venvs/
+.venv-before-*/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+data/
+.env
+.env.*
+!.env.example
+*.env
+*.sqlite*
+*.db
+*.db-*
+*.log
+.coverage
+htmlcov/
+.research/
+dist/
+
+# Archives locales de l'ancien matching, retiré de l'application.
+/docs/AUDIT_METHODES_2026-10-20.json
+/docs/matching-challenges.json
+/docs/matching-reference.json
+/docs/OPTIMISATION_MATCHING.json

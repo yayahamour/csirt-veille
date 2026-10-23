@@ -1,0 +1,35 @@
+[Unit]
+Description=CSIRT - collecte RSS et regroupement des alertes
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=csirt
+Group=csirt
+WorkingDirectory=/opt/csirt
+EnvironmentFile=/etc/csirt/csirt.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/csirt/.venv/bin/python -m csirt.collector
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=30
+Nice=10
+CPUQuota=50%
+MemoryAccounting=true
+MemoryHigh=128M
+MemoryMax=192M
+TasksMax=16
+LimitNOFILE=128
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/csirt
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+# Roues ARM 32 bits pour eviter de compiler pydantic-core sur le Pi 2.
+--extra-index-url https://www.piwheels.org/simple
+--prefer-binary
+--only-binary=:all:
+-r deploy/raspberry/requirements.lock

@@ -1,0 +1,18 @@
+# Versions de l'environnement ayant passé les tests du projet.
+# Mettre à jour ensemble, puis relancer les tests et la préparation des roues ARM.
+fastapi==0.115.12
+uvicorn==0.34.2
+httpx==0.28.1
+defusedxml==0.7.1
+anyio==4.15.1
+pydantic==2.11.4
+pydantic-core==2.33.2
+starlette==0.46.2
+annotated-types==0.8.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+h11==0.16.0
+httpcore==1.0.9
+certifi==2026.7.22
+idna==3.20
+click==8.5.0

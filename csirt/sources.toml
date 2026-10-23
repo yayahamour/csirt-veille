@@ -1,0 +1,60 @@
+# Modifier ce fichier pour changer une source ; recharge au prochain cycle.
+# Les identifiants restent stables pour conserver publications et historique.
+version = 1
+
+
+[[sources]]
+id = "bonjour-la-fuite"
+name = "Bonjour la fuite"
+kind = "rss"
+enabled = true
+poll_seconds = 1800
+fixed_poll_interval = true
+organization_mode = "title"
+[sources.request]
+method = "GET"
+url = "https://bonjourlafuite.eu.org/feed.xml"
+[sources.request.headers]
+Cache-Control = "no-cache"
+
+[[sources]]
+id = "cyberattaque"
+name = "Cyberattaque.org"
+kind = "rss"
+enabled = true
+poll_seconds = 1800
+fixed_poll_interval = true
+organization_mode = "article"
+[sources.request]
+method = "GET"
+url = "https://www.cyberattaque.org/feed/"
+[sources.request.headers]
+Cache-Control = "no-cache"
+
+[[sources]]
+id = "frenchbreaches"
+name = "FrenchBreaches"
+kind = "rss"
+enabled = true
+poll_seconds = 1800
+fixed_poll_interval = true
+organization_mode = "title"
+[sources.request]
+method = "GET"
+url = "https://frenchbreaches.com/feed.xml"
+[sources.request.headers]
+Cache-Control = "no-cache"
+
+[[sources]]
+id = "fuites-infos"
+name = "Fuites Infos — articles"
+kind = "rss"
+enabled = true
+poll_seconds = 1800
+fixed_poll_interval = true
+organization_mode = "article"
+[sources.request]
+method = "GET"
+url = "https://fuitesinfos.fr/feed.xml"
+[sources.request.headers]
+Cache-Control = "no-cache"

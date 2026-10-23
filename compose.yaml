@@ -1,0 +1,28 @@
+services:
+  api:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      CSIRT_DB_PATH: /data/csirt.sqlite3
+      CSIRT_SOURCES_PATH: /app/config/sources.toml
+    volumes:
+      - csirt-data:/data
+      - ./csirt/sources.toml:/app/config/sources.toml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+  collector:
+    build: .
+    command: ["python", "-m", "csirt.collector"]
+    environment:
+      CSIRT_DB_PATH: /data/csirt.sqlite3
+      CSIRT_SOURCES_PATH: /app/config/sources.toml
+    volumes:
+      - csirt-data:/data
+      - ./csirt/sources.toml:/app/config/sources.toml:ro
+    restart: unless-stopped
+volumes:
+  csirt-data:

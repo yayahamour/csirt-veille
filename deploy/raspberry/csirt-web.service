@@ -1,0 +1,32 @@
+[Unit]
+Description=CSIRT - interface web et API
+After=network.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=csirt
+Group=csirt
+WorkingDirectory=/opt/csirt
+EnvironmentFile=/etc/csirt/csirt.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/csirt/.venv/bin/python -m uvicorn csirt.api:app --host 0.0.0.0 --port 8000 --workers 1 --loop asyncio --http h11 --limit-concurrency 16 --backlog 32 --timeout-keep-alive 5 --no-access-log
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+MemoryAccounting=true
+MemoryHigh=192M
+MemoryMax=256M
+TasksMax=32
+LimitNOFILE=256
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/csirt
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

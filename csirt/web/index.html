@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Collecte et regroupement des alertes cyber de quatre sources publiques.">
+  <meta name="theme-color" content="#121c32"><title>Observatoire · CSIRT</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/app.css?v=reporting-period-1"><script src="/assets/app.js?v=reporting-period-1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Aller au contenu</a>
+<aside class="sidebar">
+  <a class="brand" href="#overview"><span class="brand-mark">◈</span><span>CSIRT<small>OBSERVATOIRE</small></span></a>
+  <p class="nav-caption">ESPACE DE VEILLE</p>
+  <nav aria-label="Navigation principale">
+    <a href="#overview" data-view="overview">◫ <span>Vue d’ensemble</span></a>
+    <a href="#incidents" data-view="incidents">▤ <span>Incidents</span><b id="nav-count">—</b></a>
+    <a href="#sources" data-view="sources">◉ <span>Sources de veille</span></a>
+  </nav>
+  <div class="sidebar-note"><span class="dot"></span> Une veille, plusieurs sources.<small>Les alertes réunies au même endroit.</small></div>
+  <div class="sidebar-footer">Cellule de veille<small>Espace de consultation</small></div>
+</aside>
+<div class="workspace">
+<header class="topbar"><div>Veille cyber <span>/</span> <strong id="breadcrumb">Vue d’ensemble</strong></div><span class="local-status">● Données locales</span></header>
+<main id="main" tabindex="-1">
+  <div class="page-header"><div><p class="eyebrow">OBSERVATOIRE DES CYBERINCIDENTS</p><h1 id="page-title">La veille, en perspective.</h1><p class="description">Rassemblez les alertes, croisez les publications et suivez les nouveautés.</p></div><button id="refresh" class="button">↻ Actualiser le tableau</button></div>
+  <div id="global-error" class="notice error" role="alert" hidden></div>
+  <div class="collection-control"><div><strong><span class="dot"></span> Production · bridé</strong><small>Collecte des flux toutes les 30 minutes · Tableau actualisé automatiquement chaque minute</small></div><span id="collector-status">Lecture du collecteur…</span></div>
+  <section class="new-banner" aria-label="Nouveautés depuis votre dernière consultation">
+    <div><strong id="new-title">Suivi des nouveautés</strong><p id="new-description">Chargement de votre repère de lecture…</p></div>
+    <div class="button-group"><button id="show-new" class="button button-primary">Voir les nouveautés</button><button id="mark-seen" class="button">Tout marquer comme vu</button></div>
+  </section>
+  <p id="reporting-period" class="muted" role="status" aria-live="polite">Bilan de veille : de 17 h à 17 h, heure de Paris · Bascule à 20 h</p>
+  <section id="metrics" class="metrics" aria-label="Indicateurs de la période de veille" aria-describedby="reporting-period">
+    <article class="metric"><span>Incidents de la période</span><strong id="metric-incidents">—</strong><small>Au moins une publication dans la période</small></article>
+    <article class="metric"><span>Publications de la période</span><strong id="metric-publications">—</strong><small>Selon la date publiée par la source</small></article>
+    <article class="metric"><span>Incidents avec plusieurs sources</span><strong id="metric-crossed">—</strong><small>Plusieurs sources dans la période</small></article>
+    <article class="metric"><span>Sources suivies</span><strong id="metric-sources">—</strong><small>Flux RSS publics</small></article>
+  </section>
+  <section id="overview-panels" class="dashboard-panels">
+    <article class="panel"><h2>Statuts des alertes de la période</h2><p class="muted">Selon les publications comprises dans le bilan.</p><div id="status-chart" class="chart"></div></article>
+    <article class="panel"><h2>Publications par source sur la période</h2><p class="muted">Une même alerte peut figurer dans plusieurs flux.</p><div id="source-chart" class="chart"></div></article>
+  </section>
+  <section id="incidents-panel" class="panel incidents-panel" aria-labelledby="table-title">
+    <div class="section-heading"><div><h2 id="table-title">Les alertes réunies</h2><p class="muted" id="result-count">Chargement…</p></div><span class="updated" id="updated" role="status" aria-live="polite"></span></div>
+    <form id="filters" class="filters">
+      <label class="search-box"><span class="sr-only">Rechercher dans les alertes</span><input id="search" name="q" placeholder="Rechercher un organisme, un mot-clé…" maxlength="128" type="search"></label>
+      <label><span class="sr-only">Source</span><select id="filter-source" name="source"><option value="">Toutes les sources</option></select></label>
+      <label><span class="sr-only">Statut de l’alerte</span><select id="filter-status" name="alert_status"><option value="">Tous les statuts</option><option value="confirmed">Confirmé selon la source</option><option value="claimed">Revendiqué</option><option value="unreliable_claim">Revendication peu fiable</option><option value="mixed">Sources divergentes</option><option value="unknown">Non renseigné</option></select></label>
+      <label><span class="sr-only">Trier par</span><select id="filter-sort" name="sort"><option value="reference_at">Date de publication</option><option value="activity_seq">Ajout ou mise à jour</option><option value="last_changed_at">Dernière modification</option><option value="organization">Nom de l’organisme</option><option value="alert_status">Statut de l’alerte</option><option value="source_name">Source</option></select></label>
+      <label class="check-filter"><input id="filter-new" type="checkbox"> Nouveautés uniquement</label>
+      <button class="button" type="submit">Rechercher</button>
+    </form>
+    <p id="sort-status" class="sr-only" role="status" aria-live="polite"></p>
+    <div class="table-scroll"><table><thead><tr><th scope="col" aria-sort="none"><button type="button" class="sort-button" data-sort="organization">Organisme cité / alerte <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th scope="col" aria-sort="descending"><button type="button" class="sort-button" data-sort="reference_at">Dernière publication <span class="sort-indicator" aria-hidden="true">▼</span></button></th><th scope="col" aria-sort="none"><button type="button" class="sort-button" data-sort="alert_status">Statut & indice <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th scope="col" aria-sort="none"><button type="button" class="sort-button" data-sort="source_name">Sources <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th scope="col"><span class="sr-only">Consulter</span></th></tr></thead><tbody id="incident-rows"><tr><td colspan="5">Chargement des alertes…</td></tr></tbody></table></div>
+    <div class="pagination"><span id="page-info"></span><div class="button-group"><button id="previous" class="button">← Précédent</button><button id="next" class="button">Suivant →</button></div></div>
+  </section>
+  <section id="sources-panel" class="panel" hidden><div class="section-heading"><div><h2>Sources de veille</h2><p class="muted">Fréquence, disponibilité et dernière collecte des flux.</p></div></div><div id="source-cards" class="source-cards"></div></section>
+  <footer>CSIRT · Veille publique <span>Regroupements indicatifs · Statuts attribués par les éditeurs des sources</span></footer>
+</main>
+</div>
+<dialog id="detail-dialog" aria-labelledby="detail-title"><div class="detail-top"><span>DÉTAIL DE L’ALERTE</span><button id="close-detail" class="button" aria-label="Fermer le détail">✕</button></div><div id="detail-body" class="detail-body"></div></dialog>
+</body></html>
