@@ -45,7 +45,7 @@ def create_app(settings=None):
         initialize(settings)
         anyio.to_thread.current_default_thread_limiter().total_tokens=settings.web_threads
         yield
-    app=FastAPI(title='CSIRT — rassemblement des alertes',version='0.2.0',lifespan=lifespan)
+    app=FastAPI(title='CSIRT — rassemblement des alertes',version='0.2.1',lifespan=lifespan)
     web=Path(__file__).with_name('web')
     app.mount('/assets',StaticFiles(directory=web),name='assets')
 

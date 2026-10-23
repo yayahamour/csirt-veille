@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csirt-veille-api"
-version = "0.2.0"
+version = "0.2.1"
 description = "Collecte RSS sobre et API de veille CSIRT"
 requires-python = ">=3.11"
 dependencies = [

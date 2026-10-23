@@ -1,6 +1,7 @@
 from contextlib import closing
 import hashlib
 import io
+import shutil
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -9,7 +10,7 @@ import tarfile
 
 import pytest
 
-from scripts.install_release import SERVICES, database_path, install_release
+from scripts.install_release import SERVICES, database_path, install_release, install_local
 from scripts.package_pi import ROOT, create_package
 from scripts.verify_export import verify
 
@@ -48,7 +49,7 @@ class Services:
         result = 0
         if command[0] == 'bash':
             assert command[1] == str(self.locations['app'] / 'install.sh')
-            assert command[2:] == ['--skip-system-packages']
+            assert command[2:] in (['--skip-system-packages'], ['--skip-system-packages', '--offline'])
             self.on_install()
         else:
             assert command[0] == 'systemctl'
@@ -188,3 +189,96 @@ def test_valid_public_archive_can_be_downloaded_and_extracted(tmp_path):
     assert result.returncode == 0, result.stderr
     assert verify(tmp_path / 'csirt') > 25
     assert not (tmp_path / 'csirt/data/csirt-backup.sqlite3').exists()
+
+
+@pytest.mark.parametrize('directory', ['csirt', 'csirt-veille-main', 'csirt dossier extrait'])
+def test_local_nested_extraction_is_installed_at_managed_root(release, tmp_path, directory):
+    paths = locations(tmp_path)
+    extracted = paths['app'] / directory
+    extracted.parent.mkdir(parents=True)
+    shutil.copytree(release, extracted)
+    services = Services(paths)
+    result = install_local(extracted, **paths, run=services.run)
+    assert verify(paths['app']) > 25
+    assert (Path(result['previous_code']) / directory / 'install.sh').is_file()
+    assert not (paths['app'] / directory / 'install.sh').exists()
+
+
+def test_local_git_checkout_is_packaged_without_git_or_secrets(release, tmp_path, monkeypatch):
+    from scripts import package_pi
+    checkout = tmp_path / 'checkout source'
+    shutil.copytree(release, checkout)
+    (checkout / 'MANIFEST.sha256').unlink()
+    (checkout / '.env').write_text('PRIVATE=must-not-be-copied')
+    (checkout / '.git').mkdir()
+    (checkout / '.git/config').write_text('local Git configuration')
+    monkeypatch.setattr(package_pi, 'ROOT', checkout)
+    paths = locations(tmp_path)
+    services = Services(paths)
+    install_local(checkout, **paths, run=services.run, offline=True)
+    assert verify(paths['app']) > 25
+    assert not (paths['app'] / '.env').exists() and not (paths['app'] / '.git').exists()
+    assert (checkout / '.env').is_file()
+    assert next(command for command in services.commands if command[0] == 'bash')[-1] == '--offline'
+
+
+def test_local_repackaged_nested_checkout_keeps_original_directory(release, tmp_path, monkeypatch):
+    from scripts import package_pi
+    paths = locations(tmp_path)
+    checkout = paths['app'] / 'csirt-veille-main'
+    checkout.parent.mkdir(parents=True)
+    shutil.copytree(release, checkout)
+    (checkout / 'MANIFEST.sha256').unlink()
+    monkeypatch.setattr(package_pi, 'ROOT', checkout)
+    services = Services(paths)
+    result = install_local(checkout, **paths, run=services.run)
+    assert verify(paths['app']) > 25
+    assert (Path(result['previous_code']) / 'csirt-veille-main/install.sh').is_file()
+
+
+def test_public_bootstrap_repairs_existing_nested_extraction(release, tmp_path):
+    paths = locations(tmp_path)
+    previous_source = paths['app'] / 'csirt'
+    previous_source.parent.mkdir(parents=True)
+    shutil.copytree(release, previous_source)
+    services = Services(paths)
+    result = install_release(release, **paths, run=services.run)
+    assert verify(paths['app']) > 25
+    assert (Path(result['previous_code']) / 'csirt/install.sh').is_file()
+
+
+def test_local_snapshot_is_preserved_but_rejected_for_public_download(settings, tmp_path, monkeypatch):
+    monkeypatch.setenv('CSIRT_DB_PATH', str(settings.db_path))
+    output = tmp_path / 'local-export.tar.gz'
+    create_package(output, with_database=True)
+    unpacked = tmp_path / 'unpacked'
+    with tarfile.open(output) as archive:
+        for member in archive:
+            target = unpacked / member.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(archive.extractfile(member).read())
+    source = unpacked / 'csirt'
+    paths = locations(tmp_path)
+    services = Services(paths)
+    with pytest.raises(ValueError, match='sans base de données'):
+        install_release(source, **paths, run=services.run)
+    assert not services.commands
+    install_local(source, **paths, run=services.run)
+    with closing(sqlite3.connect(paths['app'] / 'data/csirt-backup.sqlite3')) as db:
+        assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
+        assert db.execute('SELECT COUNT(*) FROM sources').fetchone()[0] == 4
+
+
+@pytest.mark.skipif(sys.platform != 'linux' or not shutil.which('bash'), reason='Bash Linux requis')
+def test_launcher_resolves_file_symlink_and_spaces_from_other_directory(tmp_path):
+    project = tmp_path / 'projet avec espaces'
+    installer = project / 'deploy/raspberry/install.sh'
+    installer.parent.mkdir(parents=True)
+    installer.write_text('printf "LAUNCHER_OK:%s" "$1"\n')
+    launcher = project / 'install.sh'
+    launcher.write_bytes((ROOT / 'install.sh').read_bytes())
+    alias = tmp_path / 'alias.sh'
+    alias.symlink_to(launcher)
+    result = subprocess.run(['bash', str(alias), '--offline'], cwd=tmp_path,
+                            capture_output=True, text=True, check=True)
+    assert result.stdout == 'LAUNCHER_OK:--offline'

@@ -10,6 +10,8 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tarfile
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -46,12 +48,20 @@ def restore_database(snapshot, destination, metadata):
 def install_release(source, app=Path('/opt/csirt'), config=Path('/etc/csirt'),
                     state=Path('/var/lib/csirt'), backups=Path('/var/backups/csirt'),
                     units=Path('/etc/systemd/system'), command_dir=Path('/usr/local/bin'),
-                    run=subprocess.run):
+                    run=subprocess.run, local=False, offline=False, origin=None):
     verify(source)
     release = json.loads((source / 'EXPORT.json').read_text(encoding='utf-8'))
-    if release['database_included']:
+    if release['database_included'] and not local:
         raise ValueError('Le téléchargement public doit être sans base de données')
-    if app.is_symlink() or (app.exists() and not (app / 'csirt/api.py').is_file()):
+    # Une archive peut avoir été extraite dans /opt/csirt/csirt ou un sous-dossier
+    # csirt-veille-main. Le conteneur entier sera conservé avant normalisation.
+    origin = (origin or source).resolve()
+    nested = local and origin != app.resolve() and origin.is_relative_to(app.resolve())
+    extracted_container = app.is_dir() and any(
+        child.is_dir() and not child.is_symlink() and all((child / name).is_file()
+            for name in ('csirt/api.py', 'install.sh', 'pyproject.toml'))
+        for child in app.iterdir())
+    if app.is_symlink() or (app.exists() and not (app / 'csirt/api.py').is_file() and not nested and not extracted_container):
         raise ValueError(f'{app} ne correspond pas à une installation CSIRT reconnue')
     database = database_path(config, state)
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
@@ -95,7 +105,8 @@ def install_release(source, app=Path('/opt/csirt'), config=Path('/etc/csirt'),
             raise
         replaced = True
         inherited_lock = sys.platform == 'linux' and Path('/proc/self/fd/9').exists() and os.readlink('/proc/self/fd/9') == '/run/lock/csirt-install.lock'
-        run(['bash', str(app / 'install.sh'), '--skip-system-packages'], check=True,
+        arguments = ['--skip-system-packages'] + (['--offline'] if offline else [])
+        run(['bash', str(app / 'install.sh'), *arguments], check=True,
             pass_fds=(9,) if inherited_lock else ())
     except (OSError, ValueError, sqlite3.Error, subprocess.CalledProcessError):
         if replaced:
@@ -130,12 +141,47 @@ def install_release(source, app=Path('/opt/csirt'), config=Path('/etc/csirt'),
             'previous_code': str(previous) if had_app else None}
 
 
+def install_local(source, **kwargs):
+    """Installer le contenu d'une archive locale ou d'un clone Git, sans téléchargement."""
+    if (source / 'MANIFEST.sha256').is_file():
+        return install_release(source, local=True, **kwargs)
+    required = ('csirt/api.py', 'install.sh', 'deploy/raspberry/install.sh', 'pyproject.toml')
+    if any(not (source / name).is_file() for name in required):
+        raise ValueError(f'Dossier source incomplet : {source}')
+    from scripts import package_pi
+    # packager et source sont issus du même projet ; ne copier que sa liste de
+    # fichiers exportables (sans Git, secrets, venv ou archives de recherche).
+    if source.resolve() != package_pi.ROOT.resolve():
+        raise ValueError('Le packager doit être lancé depuis le dossier source du projet')
+    with tempfile.TemporaryDirectory(prefix='csirt-local-') as temporary:
+        root = Path(temporary)
+        archive = root / 'source.tar.gz'
+        wheels = source / 'deploy/raspberry/wheels'
+        if not wheels.is_dir():wheels = source / 'dist/pi-wheels'
+        package_pi.create_package(archive, wheelhouse=wheels if wheels.is_dir() else None)
+        with tarfile.open(archive) as package:
+            for member in package:
+                target = root / member.name
+                if not member.isfile() or not target.resolve().is_relative_to(root.resolve()):
+                    raise ValueError('Fichier local non exportable')
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with package.extractfile(member) as incoming, target.open('wb') as outgoing:
+                    shutil.copyfileobj(incoming, outgoing)
+                target.chmod(member.mode)
+        return install_release(root / 'csirt', local=True, origin=source, **kwargs)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Installer une version CSIRT vérifiée')
     parser.add_argument('--source', required=True, type=Path)
+    parser.add_argument('--local', action='store_true', help='Installer un dossier extrait ou cloné')
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--skip-system-packages', action='store_true', help='Prérequis déjà traités par le lanceur')
     args = parser.parse_args()
     if not hasattr(os, 'geteuid') or os.geteuid() != 0:parser.exit(1, 'Lancer le bootstrap avec sudo.\n')
-    try:install_release(args.source.resolve())
+    try:
+        if args.local:install_local(args.source.resolve(), offline=args.offline)
+        else:install_release(args.source.resolve(), offline=args.offline)
     except (OSError, ValueError, sqlite3.Error, subprocess.CalledProcessError) as exc:
         parser.exit(1, f'Installation interrompue : {exc}\n')
 

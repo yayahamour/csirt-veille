@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 022
 
-usage() { printf '%s\n' 'Usage : sudo bash /opt/csirt/install.sh [--offline] [--skip-system-packages]' 'Sans option, installe les prérequis système via apt.'; }
+usage() { printf '%s\n' 'Usage : sudo ./install.sh [--offline] [--skip-system-packages]' 'Installe automatiquement le projet dans /opt/csirt et prépare les prérequis système.'; }
 offline=false
 skip_system=false
 while [[ $# -gt 0 ]]; do
@@ -15,8 +15,8 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 [[ ${EUID} -eq 0 ]] || { printf '%s\n' 'Lancer avec sudo.' >&2; exit 1; }
-app_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-[[ "$app_dir" == '/opt/csirt' ]] || { printf '%s\n' 'Extraire le dossier csirt dans /opt/csirt avant installation.' >&2; exit 1; }
+script_file="$(readlink -f -- "${BASH_SOURCE[0]}")"
+app_dir="$(cd -P -- "$(dirname -- "$script_file")/../.." && pwd -P)"
 [[ -d /run/systemd/system ]] || { printf '%s\n' 'Raspberry Pi OS avec systemd est requis.' >&2; exit 1; }
 # Une installation à la fois. flock est fourni par util-linux sur Raspberry Pi OS.
 lock_file=/run/lock/csirt-install.lock
@@ -29,6 +29,12 @@ if ! "$offline" && ! "$skip_system"; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv ca-certificates tzdata
 fi
 python3 -c 'import sys,platform,struct; assert sys.version_info >= (3,11), "Python 3.11 minimum"; assert platform.machine()=="armv7l" and struct.calcsize("P")==4, "Pi 2 v1.1 : utiliser Raspberry Pi OS Lite 32 bits ARMv7"'
+if [[ "$app_dir" != '/opt/csirt' ]]; then
+  printf 'Dossier source : %s\nInstallation automatique vers /opt/csirt ; le dossier source sera conservé ou sauvegardé.\n' "$app_dir"
+  local_args=(--source "$app_dir" --local --skip-system-packages)
+  if "$offline"; then local_args+=(--offline); fi
+  exec python3 scripts/install_release.py "${local_args[@]}"
+fi
 if [[ -f MANIFEST.sha256 ]]; then
   python3 scripts/verify_export.py "$app_dir"
 fi
