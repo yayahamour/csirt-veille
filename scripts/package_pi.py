@@ -42,7 +42,7 @@ def create_package(output, with_database=False, wheelhouse=None):
     output.parent.mkdir(parents=True, exist_ok=True)
     payload = {}
     for name in ('pyproject.toml', 'requirements-pi.txt', 'README.md', 'README_RASPBERRY_PI.md',
-                 'install.sh', '.env.example', 'test.ipynb'):
+                 'install.sh', 'bootstrap.sh', '.env.example', 'test.ipynb'):
         payload[name] = (ROOT / name).read_bytes()
     for folder in ('csirt', 'deploy', 'docs', 'scripts', 'tests'):
         for path in sorted((ROOT / folder).rglob('*')):
@@ -55,6 +55,7 @@ def create_package(output, with_database=False, wheelhouse=None):
             if path.suffix == '.sh':data = data.decode('utf-8-sig').replace('\r\n', '\n').encode('utf-8')
             payload[relative.as_posix()] = data
     payload['install.sh'] = payload['install.sh'].decode('utf-8-sig').replace('\r\n', '\n').encode('utf-8')
+    payload['bootstrap.sh'] = payload['bootstrap.sh'].decode('utf-8-sig').replace('\r\n', '\n').encode('utf-8')
     wheels = validate_wheelhouse(wheelhouse) if wheelhouse else None
     if wheels:
         for name in ['WHEELHOUSE.json', *wheels['files']]:

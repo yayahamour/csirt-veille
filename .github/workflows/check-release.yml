@@ -1,0 +1,59 @@
+name: Tests et version Raspberry Pi
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Installer les dépendances de test figées
+        run: python -m pip install -e '.[test]' -c deploy/raspberry/requirements.lock
+      - name: Vérifier les scripts Linux et JavaScript
+        run: |
+          bash -n bootstrap.sh
+          bash -n install.sh
+          bash -n deploy/raspberry/install.sh
+          node --check csirt/web/app.js
+      - name: Tester l'application et l'installation
+        run: python -m pytest -q
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Vérifier le numéro de version
+        run: |
+          python -c 'import os,tomllib; from pathlib import Path; version=tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["GITHUB_REF_NAME"]=="v"+version'
+      - name: Préparer les roues ARM pour Bookworm
+        run: python scripts/prepare_pi_wheels.py --python 3.11
+      - name: Construire une archive publique sans données locales
+        run: |
+          python scripts/package_pi.py --wheelhouse dist/pi-wheels --output dist/public/csirt-pi2.tar.gz
+          python -c 'import tarfile,json; a=tarfile.open("dist/public/csirt-pi2.tar.gz"); assert not any(n.startswith("csirt/data/") for n in a.getnames()); assert not json.load(a.extractfile("csirt/EXPORT.json"))["database_included"]'
+      - name: Publier la version installable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/public/csirt-pi2.tar.gz dist/public/csirt-pi2.tar.gz.sha256 \
+            dist/public/README_RASPBERRY_PI.md \
+            --verify-tag --title "CSIRT $GITHUB_REF_NAME" --notes-file docs/RELEASE.md

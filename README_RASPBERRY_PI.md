@@ -2,6 +2,30 @@
 
 Le paquet fournit l'interface FastAPI, SQLite, le collecteur RSS et les services de démarrage automatique. Il conserve uniquement le rassemblement des alertes, en mode production bridé. Les dépendances Python ARM sont incluses pour **Python 3.11 / Raspberry Pi OS Lite 32 bits Bookworm**.
 
+## Installation automatique depuis GitHub
+
+Le système Raspberry Pi OS doit déjà être installé, démarré et connecté à Internet. Sur le Pi, une fois connecté par SSH, lancer :
+
+```bash
+curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/main/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
+```
+
+Si `curl` n'est pas présent : `sudo apt-get update && sudo apt-get install -y curl ca-certificates`. La préparation de la carte SD reste à faire avec Raspberry Pi Imager ; le script prend en charge toute l'installation de l'application après démarrage du système.
+
+Le bootstrap vérifie le modèle d'architecture et systemd, installe les prérequis sans questionnaire, télécharge la dernière [version publiée](https://github.com/yayahamour/csirt-veille/releases/latest) et son checksum, vérifie le SHA-256 avant extraction, contrôle le manifeste, puis lance l'installateur. Il affiche l'adresse IP et le port du site après contrôle de l'API et du collecteur. Aucun clone Git, compte GitHub, clé API ou transfert de fichiers n'est nécessaire.
+
+La version publique démarre avec une base vide et collecte les flux à son premier passage. Elle ne contient jamais la base du poste de développement. L'export manuel avec snapshot reste disponible séparément.
+
+Pour les mises à jour suivantes :
+
+```bash
+sudo csirt-update
+```
+
+Pour installer une version précise : `sudo csirt-update --version v0.2.0`. Une seule installation peut fonctionner à la fois. Les données et réglages sont conservés. La version et le checksum sont vérifiés avant l'arrêt des services. Le bootstrap sauvegarde la base, les configurations et les unités dans `/var/backups/csirt/DATE`, puis conserve l'ancien code avec son environnement dans `/opt/csirt-previous-DATE`. Si l'installateur échoue, il arrête la version en échec, rétablit le code, la base, les unités et les services antérieurs. Le code échoué reste dans `/opt/csirt-failed-DATE` pour diagnostic. Lors d'une première installation en échec, les fichiers de données créés sont conservés pour diagnostic et réessai.
+
+Les sauvegardes ne sont pas supprimées automatiquement : les archiver régulièrement hors de la carte SD. Les prochaines versions sont construites automatiquement sur GitHub après les tests lors de la publication d'un tag correspondant à la version du projet.
+
 ## 1. Préparer le Pi
 
 Installer Raspberry Pi OS Lite **32 bits**, version Bookworm avec Python 3.11, sur la carte microSD. Activer SSH, créer votre utilisateur et connecter le Pi au réseau. Prévoir environ 1 Go libre pour le système Python, les environnements et les sauvegardes, en plus du système installé. L'installation initiale utilise Internet pour les paquets système ; la collecte nécessite ensuite un accès HTTPS aux sources.

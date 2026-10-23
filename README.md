@@ -2,6 +2,18 @@
 
 Application Python/FastAPI + SQLite, avec interface web locale. La collecte et le regroupement des alertes sont les seules fonctions de traitement. Les connecteurs d’identification, registres d’entreprises et matching ont été retirés.
 
+## Installation automatique sur Raspberry Pi
+
+Sur un Pi 2 v1.1 avec **Raspberry Pi OS Lite 32 bits Bookworm**, Internet et `curl` :
+
+```bash
+curl -fL https://raw.githubusercontent.com/yayahamour/csirt-veille/main/bootstrap.sh -o csirt-install.sh && sudo bash csirt-install.sh
+```
+
+Le téléchargement, les contrôles d'intégrité, les prérequis, la base et le démarrage automatique sont pris en charge. L'adresse du site s'affiche en fin d'installation. La commande `sudo csirt-update` installe ensuite la dernière version publiée en sauvegardant les données et la configuration. Si `curl` manque : `sudo apt-get update && sudo apt-get install -y curl ca-certificates`.
+
+Les [versions publiques](https://github.com/yayahamour/csirt-veille/releases/latest) sont sans base locale. Le guide [README_RASPBERRY_PI.md](README_RASPBERRY_PI.md) détaille le fonctionnement et la récupération en cas d'échec. Les tests s'exécutent à chaque push ; un tag `vX.Y.Z` correspondant à `pyproject.toml` déclenche aussi la construction et la publication de l'archive ARM sans données locales.
+
 **Export Raspberry Pi 2 (1 Go)** : le guide [README_RASPBERRY_PI.md](README_RASPBERRY_PI.md) explique la copie du paquet, l'installation, les sauvegardes et les mises à jour. Le paquet est généré dans `dist/csirt-pi2.tar.gz`, avec son checksum et les dépendances ARM pour Python 3.11 lorsqu'elles sont jointes.
 
 ## Démarrer

@@ -2,26 +2,31 @@
 set -euo pipefail
 umask 022
 
-usage() { printf '%s\n' 'Usage : sudo bash /opt/csirt/install.sh [--offline]' 'Sans option, installe les prérequis système via apt.'; }
+usage() { printf '%s\n' 'Usage : sudo bash /opt/csirt/install.sh [--offline] [--skip-system-packages]' 'Sans option, installe les prérequis système via apt.'; }
 offline=false
-case "${1:-}" in
-  '') ;;
-  --offline) offline=true ;;
-  --help|-h) usage; exit 0 ;;
-  *) usage >&2; exit 2 ;;
-esac
-[[ $# -le 1 ]] || { usage >&2; exit 2; }
+skip_system=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --offline) offline=true ;;
+    --skip-system-packages) skip_system=true ;;
+    --help|-h) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
 [[ ${EUID} -eq 0 ]] || { printf '%s\n' 'Lancer avec sudo.' >&2; exit 1; }
 app_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 [[ "$app_dir" == '/opt/csirt' ]] || { printf '%s\n' 'Extraire le dossier csirt dans /opt/csirt avant installation.' >&2; exit 1; }
 [[ -d /run/systemd/system ]] || { printf '%s\n' 'Raspberry Pi OS avec systemd est requis.' >&2; exit 1; }
 # Une installation à la fois. flock est fourni par util-linux sur Raspberry Pi OS.
-exec 9>/run/lock/csirt-install.lock
+lock_file=/run/lock/csirt-install.lock
+# Réutiliser le même descripteur quand le bootstrap tient déjà le verrou.
+if [[ "$(readlink /proc/$$/fd/9 2>/dev/null || true)" != "$lock_file" ]]; then exec 9>"$lock_file"; fi
 flock -n 9 || { printf '%s\n' 'Une installation CSIRT est déjà en cours.' >&2; exit 1; }
 cd "$app_dir"
-if ! "$offline"; then
+if ! "$offline" && ! "$skip_system"; then
   apt-get update
-  apt-get install -y python3 python3-venv ca-certificates tzdata
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv ca-certificates tzdata
 fi
 python3 -c 'import sys,platform,struct; assert sys.version_info >= (3,11), "Python 3.11 minimum"; assert platform.machine()=="armv7l" and struct.calcsize("P")==4, "Pi 2 v1.1 : utiliser Raspberry Pi OS Lite 32 bits ARMv7"'
 if [[ -f MANIFEST.sha256 ]]; then
@@ -85,3 +90,6 @@ systemctl enable --now csirt-web.service csirt-collector.service
 printf '%s\n' 'Installation vérifiée.' 'Interface : http://ADRESSE_DU_PI:8000' \
   'Configuration conservée dans /etc/csirt ; données dans /var/lib/csirt.' \
   'Pour toute mise à jour, suivre README_RASPBERRY_PI.md avant extraction.'
+for address in $(hostname -I); do
+  if [[ "$address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then printf 'Ouvrir : http://%s:8000/\n' "$address"; fi
+done
