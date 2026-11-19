@@ -5,25 +5,26 @@
   <meta name="description" content="Collecte et regroupement des alertes cyber de quatre sources publiques.">
   <meta name="theme-color" content="#121c32"><title>Observatoire · CSIRT</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/app.css?v=reporting-period-1"><script src="/assets/app.js?v=reporting-period-1" defer></script>
+  <link rel="stylesheet" href="/assets/app.css?v=retention-1"><script src="/assets/anssi.js?v=2" defer></script><script src="/assets/app.js?v=retention-2" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Aller au contenu</a>
 <aside class="sidebar">
-  <a class="brand" href="#overview"><span class="brand-mark">◈</span><span>CSIRT<small>OBSERVATOIRE</small></span></a>
+  <a class="brand" href="#incidents"><span class="brand-mark">◈</span><span>CSIRT<small>OBSERVATOIRE</small></span></a>
   <p class="nav-caption">ESPACE DE VEILLE</p>
   <nav aria-label="Navigation principale">
-    <a href="#overview" data-view="overview">◫ <span>Vue d’ensemble</span></a>
-    <a href="#incidents" data-view="incidents">▤ <span>Incidents</span><b id="nav-count">—</b></a>
-    <a href="#sources" data-view="sources">◉ <span>Sources de veille</span></a>
+    <a href="#incidents" data-view="incidents" aria-label="Incidents">▤ <span>Incidents</span></a>
+    <a href="#cve" data-view="cve" aria-label="Alertes CVE" title="Alertes CVE">◇ <span>Alertes CVE</span></a>
+    <a href="#sources" data-view="sources" aria-label="Sources de veille">◉ <span>Sources de veille</span></a>
+    <a href="#memory" data-view="memory" aria-label="Gestion mémoire" title="Gestion mémoire">▥ <span>Gestion mémoire</span></a>
   </nav>
   <div class="sidebar-note"><span class="dot"></span> Une veille, plusieurs sources.<small>Les alertes réunies au même endroit.</small></div>
   <div class="sidebar-footer">Cellule de veille<small>Espace de consultation</small></div>
 </aside>
 <div class="workspace">
-<header class="topbar"><div>Veille cyber <span>/</span> <strong id="breadcrumb">Vue d’ensemble</strong></div><span class="local-status">● Données locales</span></header>
+<header class="topbar"><div>Veille cyber <span>/</span> <strong id="breadcrumb">Incidents</strong></div><span class="local-status">● Données locales</span></header>
 <main id="main" tabindex="-1">
-  <div class="page-header"><div><p class="eyebrow">OBSERVATOIRE DES CYBERINCIDENTS</p><h1 id="page-title">La veille, en perspective.</h1><p class="description">Rassemblez les alertes, croisez les publications et suivez les nouveautés.</p></div><button id="refresh" class="button">↻ Actualiser le tableau</button></div>
+  <div class="page-header"><div><p class="eyebrow">OBSERVATOIRE DES CYBERINCIDENTS</p><h1 id="page-title">Toutes les alertes.</h1><p class="description">Rassemblez les alertes, croisez les publications et suivez les nouveautés.</p></div><button id="refresh" class="button">↻ Actualiser le tableau</button></div>
   <div id="global-error" class="notice error" role="alert" hidden></div>
   <div class="collection-control"><div><strong><span class="dot"></span> Production · bridé</strong><small>Collecte des flux toutes les 30 minutes · Tableau actualisé automatiquement chaque minute</small></div><span id="collector-status">Lecture du collecteur…</span></div>
   <section class="new-banner" aria-label="Nouveautés depuis votre dernière consultation">
@@ -31,16 +32,6 @@
     <div class="button-group"><button id="show-new" class="button button-primary">Voir les nouveautés</button><button id="mark-seen" class="button">Tout marquer comme vu</button></div>
   </section>
   <p id="reporting-period" class="muted" role="status" aria-live="polite">Bilan de veille : de 17 h à 17 h, heure de Paris · Bascule à 20 h</p>
-  <section id="metrics" class="metrics" aria-label="Indicateurs de la période de veille" aria-describedby="reporting-period">
-    <article class="metric"><span>Incidents de la période</span><strong id="metric-incidents">—</strong><small>Au moins une publication dans la période</small></article>
-    <article class="metric"><span>Publications de la période</span><strong id="metric-publications">—</strong><small>Selon la date publiée par la source</small></article>
-    <article class="metric"><span>Incidents avec plusieurs sources</span><strong id="metric-crossed">—</strong><small>Plusieurs sources dans la période</small></article>
-    <article class="metric"><span>Sources suivies</span><strong id="metric-sources">—</strong><small>Flux RSS publics</small></article>
-  </section>
-  <section id="overview-panels" class="dashboard-panels">
-    <article class="panel"><h2>Statuts des alertes de la période</h2><p class="muted">Selon les publications comprises dans le bilan.</p><div id="status-chart" class="chart"></div></article>
-    <article class="panel"><h2>Publications par source sur la période</h2><p class="muted">Une même alerte peut figurer dans plusieurs flux.</p><div id="source-chart" class="chart"></div></article>
-  </section>
   <section id="incidents-panel" class="panel incidents-panel" aria-labelledby="table-title">
     <div class="section-heading"><div><h2 id="table-title">Les alertes réunies</h2><p class="muted" id="result-count">Chargement…</p></div><span class="updated" id="updated" role="status" aria-live="polite"></span></div>
     <form id="filters" class="filters">
@@ -56,8 +47,57 @@
     <div class="pagination"><span id="page-info"></span><div class="button-group"><button id="previous" class="button">← Précédent</button><button id="next" class="button">Suivant →</button></div></div>
   </section>
   <section id="sources-panel" class="panel" hidden><div class="section-heading"><div><h2>Sources de veille</h2><p class="muted">Fréquence, disponibilité et dernière collecte des flux.</p></div></div><div id="source-cards" class="source-cards"></div></section>
+  <section id="anssi-panel" hidden aria-label="Publications CERT-FR">
+    <div class="panel">
+      <div class="section-heading">
+        <div><h2>Publications du CERT-FR</h2><p class="muted" id="anssi-count" aria-live="polite">Chargement…</p><p class="muted" id="anssi-last-sync"></p></div>
+        <button id="anssi-sync" class="button" type="button">↻ Synchroniser maintenant</button>
+      </div>
+      <p id="anssi-job" class="notice" role="status"></p>
+      <details id="anssi-job-errors" hidden><summary>Erreurs de la dernière synchronisation</summary><ul></ul></details>
+      <form id="anssi-filters" class="anssi-filters">
+        <label>Recherche<input type="search" name="q" maxlength="128" placeholder="Titre, description, produit…"></label>
+        <label>Type<select name="kind"><option value="">Tous</option><option value="alerte">Alerte</option><option value="avis">Avis</option><option value="cti">Rapport</option><option value="ioc">IOC</option></select></label>
+        <label>Publié du<input type="date" name="since"></label>
+        <label>Au<input type="date" name="until"></label>
+        <label>Criticité<select name="severity"><option value="">Toutes</option><option value="critical">Critique</option><option value="high">Élevée</option><option value="medium">Moyenne</option><option value="low">Faible</option><option value="none">Nulle</option></select></label>
+        <label>CVE<input type="search" name="cve" maxlength="32" placeholder="CVE-AAAA-NNNN"></label>
+        <label>Éditeur ou logiciel<input type="search" name="product" maxlength="128"></label>
+        <label>Correctif<select name="patch"><option value="">Tous</option><option value="true">Confirmé</option><option value="false">Non confirmé</option></select></label>
+        <label>Exploitation<select name="active"><option value="">Toutes</option><option value="true">Confirmée</option><option value="false">Non confirmée</option></select></label>
+        <label>PoC public<select name="poc"><option value="">Tous</option><option value="true">Confirmé</option><option value="false">Non confirmé</option></select></label>
+        <label>Trier par<select name="sort"><option value="published_at">Publication</option><option value="updated_at">Mise à jour</option><option value="severity">Criticité</option><option value="title">Titre</option><option value="reference">Référence</option></select></label>
+        <label>Ordre<select name="order"><option value="desc">Décroissant</option><option value="asc">Croissant</option></select></label>
+        <div class="button-group"><button class="button" type="submit">Filtrer</button><button class="button" type="reset">Effacer</button></div>
+      </form>
+      <div class="table-scroll">
+        <table><thead><tr><th scope="col">Référence et titre</th><th scope="col">Type</th><th scope="col">Publication</th><th scope="col">Mise à jour</th><th scope="col">Criticité</th><th scope="col">CVE</th><th scope="col">Produits</th></tr></thead>
+        <tbody id="anssi-rows"></tbody></table>
+      </div>
+      <div class="pagination"><span id="anssi-page"></span><div class="button-group"><button class="button" id="anssi-previous" disabled>← Précédent</button><button class="button" id="anssi-next" disabled>Suivant →</button></div></div>
+    </div>
+  </section>
+  <section id="memory-panel" class="panel" hidden aria-labelledby="memory-title">
+    <div class="section-heading"><div><h2 id="memory-title">Ressources du serveur</h2><p id="memory-status" class="muted" role="status">Chargement…</p></div></div>
+    <div class="resource-list">
+      <div id="resource-ram"><label for="meter-ram">Mémoire RAM</label><meter id="meter-ram" min="0" max="100" hidden></meter><span></span></div>
+      <div id="resource-swap" hidden><label for="meter-swap">Mémoire d’échange (swap)</label><meter id="meter-swap" min="0" max="100" hidden></meter><span></span></div>
+      <div id="resource-disk"><label for="meter-disk">Disque de la base de données</label><meter id="meter-disk" min="0" max="100" hidden></meter><span></span></div>
+      <div><strong>Fichiers SQLite</strong><span id="database-size">—</span></div>
+    </div>
+    <form id="retention-form" class="retention-form">
+      <h2>Durées de conservation</h2>
+      <p class="muted">Choisis jusqu’à quelle date remonter. Laisse un champ vide pour conserver sans limite.</p>
+      <label>Incidents depuis le <input type="date" name="incidents_days"></label>
+      <label>Alertes CVE depuis le <input type="date" name="cve_days"></label>
+      <p class="muted">Ces dates avancent chaque jour. Le collecteur supprime les publications plus anciennes. Si tu recules une date, il récupère les publications encore disponibles auprès des sources.</p>
+      <button class="button button-primary" type="submit" disabled>Enregistrer</button>
+      <p class="muted" id="retention-status" role="status"></p>
+    </form>
+  </section>
   <footer>CSIRT · Veille publique <span>Regroupements indicatifs · Statuts attribués par les éditeurs des sources</span></footer>
 </main>
 </div>
 <dialog id="detail-dialog" aria-labelledby="detail-title"><div class="detail-top"><span>DÉTAIL DE L’ALERTE</span><button id="close-detail" class="button" aria-label="Fermer le détail">✕</button></div><div id="detail-body" class="detail-body"></div></dialog>
+<dialog id="anssi-dialog" aria-labelledby="anssi-detail-title"><div class="detail-top"><span>PUBLICATION CERT-FR</span><form method="dialog"><button class="button" aria-label="Fermer le détail">✕</button></form></div><div id="anssi-detail" class="detail-body"></div></dialog>
 </body></html>

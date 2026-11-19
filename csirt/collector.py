@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import random
+import sqlite3
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,7 @@ from csirt.db import claim_source, connect, initialize, sync_sources, touch_inci
 from csirt.feeds import Entry, normalize, parse_feed
 from csirt.http import fetch_request, retry_after, cache_delay
 from csirt.runtime import start_collector, heartbeat, next_cycle_seconds, stop_collector
+from csirt.retention import cutoff, options, prune
 from csirt.grouping import grouping_key,queue_grouping,find_incident,next_incident_id,repair_duplicate_incidents
 
 log = logging.getLogger(__name__)
@@ -83,6 +85,8 @@ def fetch(client: httpx.Client, source: dict, settings: Settings):
 
 def collect_source(settings: Settings, client: httpx.Client, source_id: str) -> dict:
     token = uuid.uuid4().hex
+    with connect(settings) as db:
+        revision = options(db)["rss_revision"]
     source = claim_source(settings, source_id, token)
     counts = {"created": 0, "updated": 0, "unchanged": 0, "rejected": 0}
     if source is None:
@@ -115,11 +119,15 @@ def collect_source(settings: Settings, client: httpx.Client, source_id: str) -> 
                            (source_id, token, now)).fetchone()
         if not owned:
             return {"source": source_id, "result": "lease_expired"}
+        retention = options(db)
+        threshold = cutoff(retention["incidents_days"])
         if not error and parsed:
             # Tout le lot et le cache sont valides ensemble, ou aucun ne l'est.
             db.execute("SAVEPOINT feed_batch")
             try:
                 for entry in parsed.entries:
+                    if threshold and entry.published_at and entry.published_at < threshold:
+                        continue
                     counts[store_entry(db, entry, source_id, timestamp())] += 1
             except ValueError as exc:
                 db.execute("ROLLBACK TO feed_batch")
@@ -145,10 +153,13 @@ def collect_source(settings: Settings, client: httpx.Client, source_id: str) -> 
             etag = headers.get("etag") if result.status == 200 else headers.get("etag", source["etag"])
             modified = (headers.get("last-modified") if result.status == 200
                         else headers.get("last-modified", source["last_modified"]))
+            fingerprint = body_hash or source["body_hash"]
+            if revision != retention["rss_revision"]:
+                etag = modified = fingerprint = None
             db.execute("UPDATE sources SET failures=0, last_error=NULL, last_success_at=?, next_poll_at=?, retry_not_before=?, "
                        "etag=?, last_modified=?, body_hash=?, feed_ttl_seconds=?, last_http_status=?, lease_token=NULL, lease_until=NULL WHERE id=?",
                        (now, now + delay + (0 if fixed else random.uniform(0, min(300, delay * 0.1))),now+retry_delay, etag, modified,
-                        body_hash or source["body_hash"], ttl, result.status, source_id))
+                        fingerprint, ttl, result.status, source_id))
     outcome = {"source": source_id, "result": "error" if error else "ok", **counts}
     if error:
         outcome["error"] = error
@@ -175,21 +186,33 @@ def main():
         print(json.dumps({'valid':True,'mode':'production','sources':[s['id'] for s in load_sources(settings)]}))
         return
     initialize(settings)
+    from csirt.anssi_collect import collect_anssi
+
     start_collector(settings)
     try:
         with httpx.Client(trust_env=False) as client:
             while True:
-                heartbeat(settings)
                 try:
+                    heartbeat(settings)
+                    prune(settings)
                     outcomes=collect_due(settings,client)
                     repair_duplicate_incidents(settings)
+                    anssi_result=collect_anssi(settings,client)
                 except (ValueError,OSError) as exc:
                     if args.once: parser.exit(1,f'Collecte invalide : {exc}\n')
                     log.error('Collecte invalide : %s',exc)
                     time.sleep(30)
                     continue
+                except sqlite3.OperationalError as exc:
+                    if getattr(exc, "sqlite_errorcode", 0) & 255 not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+                        raise
+                    if args.once: parser.exit(1, "Base SQLite temporairement occupée\n")
+                    log.warning("Base SQLite occupée. Nouvelle tentative au prochain cycle.")
+                    time.sleep(next_cycle_seconds(settings))
+                    continue
                 if args.once:
-                    raise SystemExit(1 if any(o['result'] in {'error','lease_expired'} for o in outcomes) else 0)
+                    raise SystemExit(1 if anssi_result in {'failed','partial'} or
+                                     any(o['result'] in {'error','lease_expired'} for o in outcomes) else 0)
                 time.sleep(next_cycle_seconds(settings))
     finally:
         stop_collector(settings)

@@ -125,7 +125,8 @@ def canonical_incident_id(db,incident_id):
 def next_incident_id(db):
     current=db.execute('SELECT COALESCE(MAX(id),0) FROM incidents').fetchone()[0]
     archived=db.execute('SELECT COALESCE(MAX(old_id),0) FROM incident_merges').fetchone()[0]
-    return max(current,archived)+1
+    floor=db.execute('SELECT incident_id_floor FROM retention_options WHERE id=1').fetchone()[0]
+    return max(current,archived,floor)+1
 
 
 def queue_grouping(db,incident_id,name):

@@ -20,6 +20,8 @@ services:
     environment:
       CSIRT_DB_PATH: /data/csirt.sqlite3
       CSIRT_SOURCES_PATH: /app/config/sources.toml
+      CSIRT_ANSSI_POLL_SECONDS: ${CSIRT_ANSSI_POLL_SECONDS:-3600}
+      CSIRT_ANSSI_INDEX_LIMIT: ${CSIRT_ANSSI_INDEX_LIMIT:-250}
     volumes:
       - csirt-data:/data
       - ./csirt/sources.toml:/app/config/sources.toml:ro

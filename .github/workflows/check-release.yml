@@ -2,7 +2,7 @@ name: Tests et version Raspberry Pi
 
 on:
   push:
-    branches: [main]
+    branches: [main, prod]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -26,6 +26,7 @@ jobs:
           bash -n install.sh
           bash -n deploy/raspberry/install.sh
           node --check csirt/web/app.js
+          node --check csirt/web/anssi.js
       - name: Tester l'application et l'installation
         run: python -m pytest -q
 

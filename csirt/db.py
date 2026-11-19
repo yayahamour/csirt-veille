@@ -184,6 +184,9 @@ def initialize(settings: Settings):
         db.execute('CREATE TRIGGER IF NOT EXISTS alerts_revision_merge AFTER INSERT ON incident_merges BEGIN '
                    'UPDATE alert_state SET revision=revision+1 WHERE id=1; END')
         if db.execute('PRAGMA foreign_key_check').fetchone(): raise ValueError('Références invalides après migration')
+        from csirt.anssi_store import SCHEMA as ANSSI_SCHEMA
+        from csirt.retention import SCHEMA as RETENTION_SCHEMA
+        db.executescript(ANSSI_SCHEMA + RETENTION_SCHEMA)
     sync_sources(settings,configs)
     from csirt.grouping import backfill_grouping_keys
     backfill_grouping_keys(settings)

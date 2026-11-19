@@ -23,12 +23,16 @@ class Settings:
     sources_path: Path=DEFAULT_SOURCES_PATH
     web_threads: int=4
     collection_mode: str='production'
+    anssi_poll_seconds: int=3600
+    anssi_index_limit: int=250
 
     def __post_init__(self):
         if self.poll_seconds<1800: raise ValueError('Collecte espacée d’au moins 1800 secondes')
         if self.lease_seconds<self.fetch_budget_seconds+30: raise ValueError('Bail HTTP trop court')
         if not 1<=self.web_threads<=16: raise ValueError('CSIRT_WEB_THREADS doit être entre 1 et 16')
         if self.collection_mode!='production': raise ValueError('Seul le mode production bridé est disponible')
+        if not 1800<=self.anssi_poll_seconds<=604800: raise ValueError('CSIRT_ANSSI_POLL_SECONDS doit être entre 1800 et 604800')
+        if not 1<=self.anssi_index_limit<=5000: raise ValueError('CSIRT_ANSSI_INDEX_LIMIT doit être entre 1 et 5000')
 
     @property
     def cycle_seconds(self): return 30
@@ -40,7 +44,9 @@ class Settings:
                    poll_seconds=int(os.getenv('CSIRT_POLL_SECONDS','1800')),
                    user_agent=os.getenv('CSIRT_USER_AGENT','CSIRT-Veille/0.2'),
                    sources_path=Path(os.getenv('CSIRT_SOURCES_PATH',str(DEFAULT_SOURCES_PATH))),
-                   web_threads=int(os.getenv('CSIRT_WEB_THREADS','4')))
+                   web_threads=int(os.getenv('CSIRT_WEB_THREADS','4')),
+                   anssi_poll_seconds=int(os.getenv('CSIRT_ANSSI_POLL_SECONDS','3600')),
+                   anssi_index_limit=int(os.getenv('CSIRT_ANSSI_INDEX_LIMIT','250')))
 
 def load_sources(settings):
     with settings.sources_path.open('rb') as stream: document=tomllib.load(stream)

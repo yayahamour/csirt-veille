@@ -1,6 +1,6 @@
 # CSIRT — rassemblement des alertes
 
-Application Python/FastAPI + SQLite, avec interface web locale. La collecte et le regroupement des alertes sont les seules fonctions de traitement. Les connecteurs d’identification, registres d’entreprises et matching ont été retirés.
+Application Python/FastAPI + SQLite, avec interface web locale. Elle regroupe les incidents issus de la veille RSS et propose un espace de consultation et de suivi des publications du CERT-FR.
 
 ## Installation automatique sur Raspberry Pi
 
@@ -42,9 +42,19 @@ Seul le mode production bridé existe. Chaque flux est interrogé toutes les 30 
 
 `python -m csirt.collector --once` traite uniquement les sources arrivées à échéance. Aucune option de débridage ; une ancienne variable `CSIRT_COLLECTION_MODE` est ignorée.
 
+## Alertes CVE
+
+L’onglet **Alertes CVE** regroupe les alertes, avis, rapports de menace et publications IOC du CERT-FR. Le collecteur alimente l’onglet automatiquement. Le bouton **Synchroniser maintenant** lui transmet une demande via SQLite.
+
+La [documentation du module](docs/ANSSI.md) détaille les sources, les réglages, les limites de couverture et l’API.
+
+L’onglet **Gestion mémoire** affiche la RAM du serveur, le swap lorsque la mesure est disponible, le volume de la base et la taille des fichiers SQLite. L’affichage s’actualise toutes les dix secondes quand l’onglet est visible. Sous Docker, les mesures correspondent aux ressources visibles depuis le conteneur.
+
+Les calendriers de cet onglet définissent séparément jusqu’à quelle date remonter pour les incidents et les bulletins CVE. La durée correspondante reste glissante. Un champ vide correspond à une conservation sans limite. Le collecteur purge les publications hors période d’après leur date de publication, ou leur première collecte si elle est inconnue. Une durée plus longue permet le rattrapage au fil des passages, selon les archives encore disponibles dans les flux et les index officiels. Les métadonnées locales d’un bulletin purgé sont supprimées avec lui. SQLite réutilise les pages libérées et compacte le fichier lorsque suffisamment de pages sont récupérables.
+
 ## Nouveautés et tableau automatique
 
-Les compteurs d'incidents, de publications et de recoupements, ainsi que les graphiques, portent sur les publications comprises entre **17 h la veille (incluse) et 17 h le jour du bilan (exclue)**, en heure de Paris. Le bilan reste affiché jusqu'à **20 h**, puis la période suivante prend le relais, en incluant les publications intervenues depuis 17 h. Le changement s'affiche lors de la vérification automatique chaque minute, même sans nouvelle collecte. Les changements d'heure été/hiver sont pris en compte. Une alerte regroupée compte une seule fois si au moins une de ses publications appartient à la période ; les recoupements et statuts du bilan utilisent uniquement les publications de cette période. Les publications sans date sont exclues des compteurs de période. Le tableau conserve tout l'historique, le repère de nouveautés reste propre au navigateur, et le compteur de sources indique toujours le nombre de flux activés.
+La période de veille affichée va de **17 h la veille** à **17 h le jour du bilan**, en heure de Paris. Le bilan bascule à **20 h**. Le tableau conserve tout l’historique et le repère de nouveautés reste propre au navigateur.
 
 Les en-têtes Organisme, Dernière publication, Statut et Sources sont cliquables. Un second clic inverse le sens du tri ; les noms sont classés sans distinguer accents et casse. Le tri porte sur tous les résultats filtrés avant pagination, reste dans l’URL et survit aux actualisations automatiques. Pour une fiche ayant plusieurs sources, le tri utilise la première source dans l’ordre alphabétique.
 

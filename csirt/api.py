@@ -16,6 +16,17 @@ from csirt.runtime import collector_status
 from csirt.grouping import canonical_incident_id,grouping_key
 from csirt.alert_status import ALERT_STATUS_SQL,alert_status_sql,incident_alerts,publication_assessment,LABELS
 from csirt.reporting import reporting_period
+from csirt.anssi_api import router as anssi_router
+from csirt.resources import snapshot as resource_snapshot
+from csirt.retention import options as retention_options, update as update_retention
+from csirt.anssi_api import local_mutation
+from fastapi import Request
+from pydantic import BaseModel, Field
+
+
+class RetentionUpdate(BaseModel):
+    incidents_days: int | None = Field(..., ge=1, le=36500)
+    cve_days: int | None = Field(..., ge=1, le=36500)
 
 Kind=Literal['data_breach','cyberattack','ransomware','vulnerability','other']
 Status=Literal['confirmed','claimed','unreliable_claim','unknown']
@@ -45,7 +56,8 @@ def create_app(settings=None):
         initialize(settings)
         anyio.to_thread.current_default_thread_limiter().total_tokens=settings.web_threads
         yield
-    app=FastAPI(title='CSIRT — rassemblement des alertes',version='0.2.1',lifespan=lifespan)
+    app=FastAPI(title='CSIRT — rassemblement des alertes',version='0.3.0',lifespan=lifespan)
+    app.include_router(anssi_router(settings))
     web=Path(__file__).with_name('web')
     app.mount('/assets',StaticFiles(directory=web),name='assets')
 
@@ -73,6 +85,24 @@ def create_app(settings=None):
         with connect(settings) as db:
             db.execute('SELECT 1').fetchone()
             return {'status':'ok','mode':'production','collector':collector_status(db)}
+
+    @app.get('/resources')
+    def resources():
+        return resource_snapshot(settings.db_path)
+
+    @app.get('/retention')
+    def retention():
+        with connect(settings) as db:
+            row = retention_options(db)
+            return {key: row[key] for key in ("incidents_days", "cve_days")}
+
+    @app.put('/retention')
+    def save_retention(change: RetentionUpdate, request: Request):
+        local_mutation(request)
+        with connect(settings) as db:
+            db.execute("BEGIN IMMEDIATE")
+            update_retention(db, change.incidents_days, change.cve_days)
+        return change
 
     @app.get('/updates')
     def updates(since:int=Query(0,ge=0)):
